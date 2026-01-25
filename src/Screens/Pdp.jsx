@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../Components/Navbar";
 import CartSidebar from "../Components/CartSidebar";
+import WishlistSidebar from "../Components/WishListSidebar";
 import { useParams } from "react-router-dom";
+import { Heart } from "lucide-react";
 import store from "../store";
 
 const Pdp = () => {
   let [pdpData, setPdpData] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [allProducts, setAllProducts] = useState([]);
+  const [cartState, setCartState] = useState(store.getState());
   let { id } = useParams();
 
   async function getData() {
@@ -15,22 +20,63 @@ const Pdp = () => {
     setPdpData(jsonData);
   }
 
+  // Fetch all products for wishlist display
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const response = await fetch(
+          "https://dummyjson.com/products?limit=100",
+        );
+        const data = await response.json();
+        setAllProducts(data.products);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    }
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = store.subscribe(() => {
+      setCartState(store.getState());
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     getData();
   }, [id]);
 
   const handleAddToCart = () => {
     if (pdpData) {
-      store.dispatch({ type: 'ADD_TO_CART', payload: pdpData });
+      store.dispatch({ type: "ADD_TO_CART", payload: pdpData });
     }
   };
+
+  const handleToggleWishlist = () => {
+    if (pdpData) {
+      store.dispatch({ type: "TOGGLE_WISHLIST", payload: pdpData.id });
+    }
+  };
+
+  const isInWishlist = pdpData
+    ? cartState.wishlist.includes(pdpData.id)
+    : false;
 
   if (!pdpData) {
     return (
       <div>
-        <Navbar onCartOpen={() => setCartOpen(true)} />
+        <Navbar
+          onCartOpen={() => setCartOpen(true)}
+          onWishlistOpen={() => setWishlistOpen(true)}
+        />
         <div className="pdp-loading">Loading product...</div>
         <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+        <WishlistSidebar
+          isOpen={wishlistOpen}
+          onClose={() => setWishlistOpen(false)}
+          allProducts={allProducts}
+        />
       </div>
     );
   }
@@ -42,7 +88,10 @@ const Pdp = () => {
 
   return (
     <div>
-      <Navbar onCartOpen={() => setCartOpen(true)} />
+      <Navbar
+        onCartOpen={() => setCartOpen(true)}
+        onWishlistOpen={() => setWishlistOpen(true)}
+      />
 
       <div className="pdp-container">
         {/* LEFT IMAGE SECTION */}
@@ -80,6 +129,16 @@ const Pdp = () => {
             <button className="add-cart" onClick={handleAddToCart}>
               Add to Cart
             </button>
+            <button
+              className={`wishlist-pdp-btn ${isInWishlist ? "active" : ""}`}
+              onClick={handleToggleWishlist}
+            >
+              <Heart
+                size={22}
+                fill={isInWishlist ? "#ef4444" : "none"}
+                color={isInWishlist ? "#ef4444" : "#111827"}
+              />
+            </button>
             <button className="buy-now">Buy Now</button>
           </div>
 
@@ -93,6 +152,13 @@ const Pdp = () => {
 
       {/* Cart Sidebar */}
       <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+
+      {/* Wishlist Sidebar */}
+      <WishlistSidebar
+        isOpen={wishlistOpen}
+        onClose={() => setWishlistOpen(false)}
+        allProducts={allProducts}
+      />
     </div>
   );
 };
